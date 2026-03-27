@@ -1,10 +1,18 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:seetru/core/errors/dio_error_handler.dart';
 import 'package:seetru/data/models/gecko-model.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Isolate helpers — keeps JSON parsing off the main thread
+// ─────────────────────────────────────────────────────────────────────────────
+List<CoinGeckoAsset> _parseAssets(List<dynamic> data) {
+  return data
+      .map((e) => CoinGeckoAsset.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Service
@@ -19,6 +27,10 @@ class CoinGeckoService extends GetxService {
   late final Dio _dio;
   final _box = GetStorage();
 
+  // ── In-flight request deduplication ───────────────────────────────
+  Future<List<CoinGeckoAsset>>? _pendingTopCoins;
+  Future<GlobalMarketData?>? _pendingGlobal;
+
   // Cache keys
   static const String _marketsCacheKey = 'cg_markets_cache';
   static const String _globalCacheKey = 'cg_global_cache';
@@ -28,27 +40,38 @@ class CoinGeckoService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    _dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {
-        'Accept': 'application/json',
-        // Add your API key here if you have a paid plan:
-        // 'x-cg-demo-api-key': 'YOUR_API_KEY',
-      },
-    ));
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: _baseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          'Accept': 'application/json',
+          // Add your API key here if you have a paid plan:
+          // 'x-cg-demo-api-key': 'YOUR_API_KEY',
+        },
+      ),
+    );
 
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        debugPrint('🌐 CoinGecko: ${options.path}');
-        handler.next(options);
-      },
-      onError: (error, handler) {
-        debugPrint('❌ CoinGecko error: ${error.message}');
-        handler.next(error);
-      },
-    ));
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          debugPrint('🌐 CoinGecko: ${options.path}');
+          handler.next(options);
+        },
+        onError: (error, handler) {
+          debugPrint('❌ CoinGecko error: ${error.message}');
+          handler.next(error);
+        },
+      ),
+    );
+  }
+
+  // ✅ Fix 3: Dispose Dio when service is destroyed
+  @override
+  void onClose() {
+    _dio.close();
+    super.onClose();
   }
 
   // ── Fetch top coins by market cap ──────────────────────────────────
@@ -57,15 +80,28 @@ class CoinGeckoService extends GetxService {
     int page = 1,
     String? category,
     bool forceRefresh = false,
+  }) {
+    _pendingTopCoins ??= _fetchTopCoins(
+      perPage: perPage,
+      page: page,
+      category: category,
+      forceRefresh: forceRefresh,
+    ).whenComplete(() => _pendingTopCoins = null);
+
+    return _pendingTopCoins!;
+  }
+
+  Future<List<CoinGeckoAsset>> _fetchTopCoins({
+    required int perPage,
+    required int page,
+    String? category,
+    required bool forceRefresh,
   }) async {
     // Check cache
     if (!forceRefresh && _isCacheValid(_marketsCacheTimeKey)) {
       final cached = _box.read<List>(_marketsCacheKey);
       if (cached != null) {
-        return cached
-            .map((e) => CoinGeckoAsset.fromJson(
-                Map<String, dynamic>.from(e)))
-            .toList();
+        return compute(_parseAssets, cached.cast<dynamic>());
       }
     }
 
@@ -84,33 +120,27 @@ class CoinGeckoService extends GetxService {
       );
 
       final List<dynamic> data = response.data;
-      final assets = data
-          .map((e) => CoinGeckoAsset.fromJson(
-              Map<String, dynamic>.from(e)))
-          .toList();
 
-      // Save to cache
-      _box.write(_marketsCacheKey, data);
-      _box.write(
-          _marketsCacheTimeKey, DateTime.now().toIso8601String());
+      final assets = await compute(_parseAssets, data);
+
+      Future.microtask(() {
+        _box.write(_marketsCacheKey, data);
+        _box.write(_marketsCacheTimeKey, DateTime.now().toIso8601String());
+      });
 
       return assets;
     } on DioException catch (e) {
       // Return cached data on error if available
       final cached = _box.read<List>(_marketsCacheKey);
       if (cached != null) {
-        return cached
-            .map((e) => CoinGeckoAsset.fromJson(
-                Map<String, dynamic>.from(e)))
-            .toList();
+        return compute(_parseAssets, cached.cast<dynamic>());
       }
       throw handleDioError(e);
     }
   }
 
   // ── Fetch specific coins by IDs ────────────────────────────────────
-  Future<List<CoinGeckoAsset>> getCoinsByIds(
-      List<String> ids) async {
+  Future<List<CoinGeckoAsset>> getCoinsByIds(List<String> ids) async {
     try {
       final response = await _dio.get(
         '/coins/markets',
@@ -123,24 +153,28 @@ class CoinGeckoService extends GetxService {
       );
 
       final List<dynamic> data = response.data;
-      return data
-          .map((e) => CoinGeckoAsset.fromJson(
-              Map<String, dynamic>.from(e)))
-          .toList();
+      return compute(_parseAssets, data);
     } on DioException catch (e) {
       throw handleDioError(e);
     }
   }
 
   // ── Fetch global market data ───────────────────────────────────────
-  Future<GlobalMarketData?> getGlobalData({
-    bool forceRefresh = false,
+  Future<GlobalMarketData?> getGlobalData({bool forceRefresh = false}) {
+    _pendingGlobal ??= _fetchGlobalData(
+      forceRefresh: forceRefresh,
+    ).whenComplete(() => _pendingGlobal = null);
+
+    return _pendingGlobal!;
+  }
+
+  Future<GlobalMarketData?> _fetchGlobalData({
+    required bool forceRefresh,
   }) async {
     if (!forceRefresh && _isCacheValid(_globalCacheTimeKey)) {
       final cached = _box.read<Map>(_globalCacheKey);
       if (cached != null) {
-        return GlobalMarketData.fromJson(
-            Map<String, dynamic>.from(cached));
+        return GlobalMarketData.fromJson(Map<String, dynamic>.from(cached));
       }
     }
 
@@ -148,16 +182,16 @@ class CoinGeckoService extends GetxService {
       final response = await _dio.get('/global');
       final data = Map<String, dynamic>.from(response.data);
 
-      _box.write(_globalCacheKey, data);
-      _box.write(
-          _globalCacheTimeKey, DateTime.now().toIso8601String());
+      Future.microtask(() {
+        _box.write(_globalCacheKey, data);
+        _box.write(_globalCacheTimeKey, DateTime.now().toIso8601String());
+      });
 
       return GlobalMarketData.fromJson(data);
     } on DioException catch (e) {
       final cached = _box.read<Map>(_globalCacheKey);
       if (cached != null) {
-        return GlobalMarketData.fromJson(
-            Map<String, dynamic>.from(cached));
+        return GlobalMarketData.fromJson(Map<String, dynamic>.from(cached));
       }
       throw handleDioError(e);
     }
@@ -179,17 +213,17 @@ class CoinGeckoService extends GetxService {
       );
 
       final List prices = response.data['prices'] ?? [];
-      return prices
-          .map((p) => (p[1] as num).toDouble())
-          .toList();
+      return compute(
+        (List p) => p.map((e) => (e[1] as num).toDouble()).toList(),
+        prices,
+      );
     } on DioException catch (e) {
       throw handleDioError(e);
     }
   }
 
   // ── Search coins ───────────────────────────────────────────────────
-  Future<List<Map<String, dynamic>>> searchCoins(
-      String query) async {
+  Future<List<Map<String, dynamic>>> searchCoins(String query) async {
     if (query.isEmpty) return [];
     try {
       final response = await _dio.get(
@@ -197,10 +231,7 @@ class CoinGeckoService extends GetxService {
         queryParameters: {'query': query},
       );
       final List coins = response.data['coins'] ?? [];
-      return coins
-          .map((e) => Map<String, dynamic>.from(e))
-          .take(10)
-          .toList();
+      return coins.map((e) => Map<String, dynamic>.from(e)).take(10).toList();
     } on DioException catch (e) {
       throw handleDioError(e);
     }
@@ -212,8 +243,7 @@ class CoinGeckoService extends GetxService {
       final response = await _dio.get('/search/trending');
       final List coins = response.data['coins'] ?? [];
       return coins
-          .map((e) =>
-              Map<String, dynamic>.from(e['item'] ?? {}))
+          .map((e) => Map<String, dynamic>.from(e['item'] ?? {}))
           .toList();
     } on DioException catch (e) {
       throw handleDioError(e);

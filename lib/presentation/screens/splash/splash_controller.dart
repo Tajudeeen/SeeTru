@@ -13,10 +13,10 @@ class SplashController extends GetxController {
   @override
   void onReady() {
     super.onReady();
-    _startAnimations();
+    _startAnimations(); // still fine to call without await in onReady
   }
 
-  void _startAnimations() async {
+  Future<void> _startAnimations() async {
     // Phase 1 – logo fades + scales in
     await Future.delayed(const Duration(milliseconds: 200));
     logoOpacity.value = 1.0;
@@ -32,10 +32,11 @@ class SplashController extends GetxController {
   }
 
   void _navigate() {
+    if (!Get.isRegistered<SplashController>()) return;
+
     final bool hasSeenOnboarding =
         _storage.read<bool>('has_seen_onboarding') ?? false;
 
-    // ✅ Check real Firebase auth state
     final isLoggedIn = AuthService.to.isLoggedIn.value;
 
     if (isLoggedIn) {
