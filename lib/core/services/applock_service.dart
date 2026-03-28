@@ -22,6 +22,10 @@ class AppLockService extends GetxService {
   // ── Called when app returns to foreground ─────────────────────────
   Future<void> onAppForeground() async {
     if (_backgroundTime == null) return;
+
+    // ✅ Fix 4: Prevent concurrent lock attempts
+    if (isAuthenticating.value) return;
+
     final biometricEnabled =
         await SecureStorageService.to.isBiometricEnabled();
     if (!biometricEnabled) return;
@@ -36,6 +40,9 @@ class AppLockService extends GetxService {
 
   // ── Lock ───────────────────────────────────────────────────────────
   Future<void> lockApp() async {
+    // ✅ Fix 3: Prevent multiple lock dialogs stacking
+    if (isAuthenticating.value) return;
+
     isLocked.value = true;
     await _showLockScreen();
   }
@@ -45,12 +52,15 @@ class AppLockService extends GetxService {
     isAuthenticating.value = true;
 
     Get.dialog(
-      WillPopScope(
-        onWillPop: () async => false, // can't dismiss by back button
+      // ✅ Fix 1: WillPopScope is deprecated — replaced with PopScope
+      PopScope(
+        canPop: false,
         child: _AppLockScreen(
           onAuthenticated: () {
             isLocked.value = false;
             isAuthenticating.value = false;
+            // ✅ Fix 6: Reset background time after successful unlock
+            _backgroundTime = null;
             Get.back();
           },
         ),
@@ -80,6 +90,11 @@ class _AppLockScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Fix 5: Safe fallback if BiometricService label is unavailable
+    final biometricLabel = Get.isRegistered<BiometricService>()
+        ? BiometricService.to.biometricLabel
+        : 'Biometrics';
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B1136),
       body: SafeArea(
@@ -120,7 +135,8 @@ class _AppLockScreen extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'Satoshi',
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.6),
+                  // ✅ Fix 2: withOpacity() replaced with Color.fromRGBO()
+                  color: const Color.fromRGBO(255, 255, 255, 0.6),
                 ),
               ),
               const SizedBox(height: 48),
@@ -143,7 +159,8 @@ class _AppLockScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4C6FFF).withOpacity(0.4),
+                        // ✅ Fix 2: withOpacity() replaced with Color.fromRGBO()
+                        color: const Color.fromRGBO(76, 111, 255, 0.4),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -156,7 +173,7 @@ class _AppLockScreen extends StatelessWidget {
                           color: Colors.white, size: 24),
                       const SizedBox(width: 10),
                       Text(
-                        'Unlock with ${BiometricService.to.biometricLabel}',
+                        'Unlock with $biometricLabel',
                         style: const TextStyle(
                           fontFamily: 'Satoshi',
                           fontSize: 16,

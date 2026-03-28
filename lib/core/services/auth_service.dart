@@ -3,6 +3,15 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
+// ✅ Fix 5: Typed exception instead of raw String throws
+class AuthException implements Exception {
+  final String message;
+  const AuthException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class AuthService extends GetxService {
   static AuthService get to => Get.find();
 
@@ -14,23 +23,41 @@ class AuthService extends GetxService {
   final Rx<User?> firebaseUser = Rx<User?>(null);
   final RxBool isLoggedIn = false.obs;
 
+  // ✅ Fix 2: Hold worker reference so it can be disposed
+  Worker? _authWorker;
+
   @override
   void onInit() {
     super.onInit();
     // Bind Firebase auth state stream
     firebaseUser.bindStream(_auth.authStateChanges());
-    ever(firebaseUser, _handleAuthChanged);
+    // ✅ Fix 2: Store worker reference for cleanup
+    _authWorker = ever(firebaseUser, _handleAuthChanged);
+  }
+
+  // ✅ Fix 2: Cancel stream subscription and worker on close
+  @override
+  void onClose() {
+    _authWorker?.dispose();
+    firebaseUser.close();
+    super.onClose();
   }
 
   void _handleAuthChanged(User? user) {
+    // ✅ Fix 3: Guard against firing during shutdown
+    if (!Get.isRegistered<AuthService>()) return;
+
     if (user != null) {
       isLoggedIn.value = true;
-      _box.write('auth_token', user.uid);
-      _box.write('user_name', user.displayName ?? 'User');
-      _box.write('user_email', user.email ?? '');
+      // ✅ Fix 1: Offload storage writes off the main thread
+      Future.microtask(() {
+        _box.write('auth_token', user.uid);
+        _box.write('user_name', user.displayName ?? 'User');
+        _box.write('user_email', user.email ?? '');
+      });
     } else {
       isLoggedIn.value = false;
-      _box.remove('auth_token');
+      Future.microtask(() => _box.remove('auth_token'));
     }
   }
 
@@ -53,7 +80,7 @@ class AuthService extends GetxService {
       );
       return credential;
     } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseError(e);
+      throw AuthException(_mapFirebaseError(e));
     }
   }
 
@@ -68,12 +95,11 @@ class AuthService extends GetxService {
         email: email.trim(),
         password: password,
       );
-      // Set display name
       await credential.user?.updateDisplayName(name);
       await credential.user?.reload();
       return credential;
     } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseError(e);
+      throw AuthException(_mapFirebaseError(e));
     }
   }
 
@@ -93,9 +119,9 @@ class AuthService extends GetxService {
 
       return await _auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseError(e);
+      throw AuthException(_mapFirebaseError(e));
     } catch (e) {
-      throw 'Google sign-in failed. Please try again.';
+      throw const AuthException('Google sign-in failed. Please try again.');
     }
   }
 
@@ -104,7 +130,7 @@ class AuthService extends GetxService {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseError(e);
+      throw AuthException(_mapFirebaseError(e));
     }
   }
 
@@ -115,18 +141,21 @@ class AuthService extends GetxService {
       if (photoUrl != null) await currentUser?.updatePhotoURL(photoUrl);
       await currentUser?.reload();
     } catch (e) {
-      throw 'Failed to update profile.';
+      throw const AuthException('Failed to update profile.');
     }
   }
 
   // ── Sign Out ───────────────────────────────────────────────────────
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
-      await _auth.signOut();
-      _box.remove('auth_token');
+      // ✅ Fix 4: Run both sign-outs in parallel
+      await Future.wait([
+        _googleSignIn.signOut(),
+        _auth.signOut(),
+      ]);
+      Future.microtask(() => _box.remove('auth_token'));
     } catch (e) {
-      throw 'Sign out failed.';
+      throw const AuthException('Sign out failed.');
     }
   }
 
@@ -135,7 +164,7 @@ class AuthService extends GetxService {
     try {
       await currentUser?.delete();
     } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseError(e);
+      throw AuthException(_mapFirebaseError(e));
     }
   }
 

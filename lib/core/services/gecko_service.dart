@@ -40,31 +40,27 @@ class CoinGeckoService extends GetxService {
   @override
   void onInit() {
     super.onInit();
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 15),
-        headers: {
-          'Accept': 'application/json',
-          // Add your API key here if you have a paid plan:
-          // 'x-cg-demo-api-key': 'YOUR_API_KEY',
-        },
-      ),
-    );
+    _dio = Dio(BaseOptions(
+      baseUrl: _baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 15),
+      headers: {
+        'Accept': 'application/json',
+        // Add your API key here if you have a paid plan:
+        // 'x-cg-demo-api-key': 'YOUR_API_KEY',
+      },
+    ));
 
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          debugPrint('🌐 CoinGecko: ${options.path}');
-          handler.next(options);
-        },
-        onError: (error, handler) {
-          debugPrint('❌ CoinGecko error: ${error.message}');
-          handler.next(error);
-        },
-      ),
-    );
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        debugPrint('🌐 CoinGecko: ${options.path}');
+        handler.next(options);
+      },
+      onError: (error, handler) {
+        debugPrint('❌ CoinGecko error: ${error.message}');
+        handler.next(error);
+      },
+    ));
   }
 
   // ✅ Fix 3: Dispose Dio when service is destroyed
@@ -81,6 +77,7 @@ class CoinGeckoService extends GetxService {
     String? category,
     bool forceRefresh = false,
   }) {
+    // ✅ Fix 5: Deduplicate in-flight requests
     _pendingTopCoins ??= _fetchTopCoins(
       perPage: perPage,
       page: page,
@@ -101,6 +98,7 @@ class CoinGeckoService extends GetxService {
     if (!forceRefresh && _isCacheValid(_marketsCacheTimeKey)) {
       final cached = _box.read<List>(_marketsCacheKey);
       if (cached != null) {
+        // ✅ Fix 2: Parse on background isolate
         return compute(_parseAssets, cached.cast<dynamic>());
       }
     }
@@ -115,14 +113,17 @@ class CoinGeckoService extends GetxService {
           'page': page,
           'sparkline': true,
           'price_change_percentage': '24h',
+          // ✅ Fix 1: Correct null-aware map entry syntax
           'category': ?category,
         },
       );
 
       final List<dynamic> data = response.data;
 
+      // ✅ Fix 2: Parse on background isolate
       final assets = await compute(_parseAssets, data);
 
+      // ✅ Fix 4: Write cache asynchronously without blocking
       Future.microtask(() {
         _box.write(_marketsCacheKey, data);
         _box.write(_marketsCacheTimeKey, DateTime.now().toIso8601String());
@@ -153,6 +154,7 @@ class CoinGeckoService extends GetxService {
       );
 
       final List<dynamic> data = response.data;
+      // ✅ Fix 2: Parse on background isolate
       return compute(_parseAssets, data);
     } on DioException catch (e) {
       throw handleDioError(e);
@@ -161,9 +163,9 @@ class CoinGeckoService extends GetxService {
 
   // ── Fetch global market data ───────────────────────────────────────
   Future<GlobalMarketData?> getGlobalData({bool forceRefresh = false}) {
-    _pendingGlobal ??= _fetchGlobalData(
-      forceRefresh: forceRefresh,
-    ).whenComplete(() => _pendingGlobal = null);
+    // ✅ Fix 5: Deduplicate in-flight requests
+    _pendingGlobal ??= _fetchGlobalData(forceRefresh: forceRefresh)
+        .whenComplete(() => _pendingGlobal = null);
 
     return _pendingGlobal!;
   }
@@ -182,6 +184,7 @@ class CoinGeckoService extends GetxService {
       final response = await _dio.get('/global');
       final data = Map<String, dynamic>.from(response.data);
 
+      // ✅ Fix 4: Write cache asynchronously without blocking
       Future.microtask(() {
         _box.write(_globalCacheKey, data);
         _box.write(_globalCacheTimeKey, DateTime.now().toIso8601String());
@@ -213,6 +216,7 @@ class CoinGeckoService extends GetxService {
       );
 
       final List prices = response.data['prices'] ?? [];
+      // ✅ Fix 2: Parse on background isolate
       return compute(
         (List p) => p.map((e) => (e[1] as num).toDouble()).toList(),
         prices,
@@ -231,7 +235,10 @@ class CoinGeckoService extends GetxService {
         queryParameters: {'query': query},
       );
       final List coins = response.data['coins'] ?? [];
-      return coins.map((e) => Map<String, dynamic>.from(e)).take(10).toList();
+      return coins
+          .map((e) => Map<String, dynamic>.from(e))
+          .take(10)
+          .toList();
     } on DioException catch (e) {
       throw handleDioError(e);
     }

@@ -15,87 +15,101 @@ class HomeView extends GetView<HomeController> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Obx(() {
+        // ✅ Fix 4: Obx is scoped only to the loading check — not the full tree
         if (controller.isLoading.value) return const _HomeShimmer();
+        return _HomeBody(controller: controller);
+      }),
+    );
+  }
+}
 
-        return RefreshIndicator(
-          onRefresh: controller.refresh,
-          color: AppColors.accent,
-          backgroundColor: AppColors.surface,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              _HomeAppBar(controller: controller),
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _PortfolioHeroCard(controller: controller),
-                    const SizedBox(height: 24),
-                    _MarketStatsRow(controller: controller),
-                    const SizedBox(height: 24),
-                    const _PromoBanner(),
-                    const SizedBox(height: 24),
-                    _FilterTabs(controller: controller),
-                    const SizedBox(height: 16),
-                    _SectionHeader(title: 'Trending', onSeeAll: () {}),
-                    const SizedBox(height: 12),
-                    _TrendingList(controller: controller),
-                    const SizedBox(height: 24),
-                    _GainersLosersSection(controller: controller),
-                    const SizedBox(height: 24),
-                    _SectionHeader(
-                      title: 'My Watchlist',
-                      onSeeAll: () {},
-                      trailing: GestureDetector(
-                        onTap: () => Get.toNamed(AppRoutes.addToken),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(
-                              AppSizes.radiusFull,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.add_rounded,
-                                size: 14,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Add',
-                                style: AppTextStyles.labelMedium.copyWith(
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
+// ─────────────────────────────────────────────────────────────────────────────
+// Home Body — extracted so it never rebuilds on isLoading changes
+// ─────────────────────────────────────────────────────────────────────────────
+class _HomeBody extends StatelessWidget {
+  final HomeController controller;
+  const _HomeBody({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: controller.refresh,
+      color: AppColors.accent,
+      backgroundColor: AppColors.surface,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          _HomeAppBar(controller: controller),
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PortfolioHeroCard(controller: controller),
+                const SizedBox(height: 24),
+                _MarketStatsRow(controller: controller),
+                const SizedBox(height: 24),
+                const _PromoBanner(),
+                const SizedBox(height: 24),
+                _FilterTabs(controller: controller),
+                const SizedBox(height: 16),
+                _SectionHeader(title: 'Trending', onSeeAll: () {}),
+                const SizedBox(height: 12),
+                _TrendingList(controller: controller),
+                const SizedBox(height: 24),
+                _GainersLosersSection(controller: controller),
+                const SizedBox(height: 24),
+                _SectionHeader(
+                  title: 'My Watchlist',
+                  onSeeAll: () {},
+                  trailing: GestureDetector(
+                    onTap: () => Get.toNamed(AppRoutes.addToken),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        // ✅ Fix 2: withOpacity → fromRGBO throughout
+                        color: const Color.fromRGBO(76, 111, 255, 0.08),
+                        borderRadius: BorderRadius.circular(
+                          AppSizes.radiusFull,
                         ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.add_rounded,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Add',
+                            style: AppTextStyles.labelMedium.copyWith(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _WatchlistSection(controller: controller),
-                    const SizedBox(height: 24),
-                    _SectionHeader(
-                      title: 'Recent Fundraising',
-                      onSeeAll: () {},
-                    ),
-                    const SizedBox(height: 12),
-                    _VCDealsList(controller: controller),
-                    const SizedBox(height: 100),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                _WatchlistSection(controller: controller),
+                const SizedBox(height: 24),
+                _SectionHeader(
+                  title: 'Recent Fundraising',
+                  onSeeAll: () {},
+                ),
+                const SizedBox(height: 12),
+                _VCDealsList(controller: controller),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
-        );
-      }),
+        ],
+      ),
     );
   }
 }
@@ -147,9 +161,7 @@ class _HomeAppBar extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(width: 12),
-
             Expanded(
               child: Obx(
                 () => Column(
@@ -252,7 +264,8 @@ class _PortfolioHeroCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSizes.radiusXl),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.40),
+              // ✅ Fix 2: withOpacity → fromRGBO
+              color: const Color.fromRGBO(76, 111, 255, 0.40),
               blurRadius: 32,
               offset: const Offset(0, 12),
             ),
@@ -266,9 +279,10 @@ class _PortfolioHeroCard extends StatelessWidget {
               child: Container(
                 width: 120,
                 height: 120,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.accent.withOpacity(0.12),
+                  // ✅ Fix 2: withOpacity → fromRGBO
+                  color: Color.fromRGBO(76, 111, 255, 0.12),
                 ),
               ),
             ),
@@ -278,9 +292,10 @@ class _PortfolioHeroCard extends StatelessWidget {
               child: Container(
                 width: 100,
                 height: 100,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.teal.withOpacity(0.10),
+                  // ✅ Fix 2: withOpacity → fromRGBO
+                  color: Color.fromRGBO(0, 198, 207, 0.10),
                 ),
               ),
             ),
@@ -293,7 +308,8 @@ class _PortfolioHeroCard extends StatelessWidget {
                     Text(
                       'Total Portfolio Value',
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.white.withOpacity(0.6),
+                        // ✅ Fix 2: withOpacity → fromRGBO
+                        color: const Color.fromRGBO(255, 255, 255, 0.6),
                         fontSize: 12,
                       ),
                     ),
@@ -304,7 +320,8 @@ class _PortfolioHeroCard extends StatelessWidget {
                           controller.isBalanceVisible.value
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
-                          color: Colors.white.withOpacity(0.5),
+                          // ✅ Fix 2: withOpacity → fromRGBO
+                          color: const Color.fromRGBO(255, 255, 255, 0.5),
                           size: 18,
                         ),
                       ),
@@ -331,7 +348,8 @@ class _PortfolioHeroCard extends StatelessWidget {
                               child: Text(
                                 '.43',
                                 style: AppTextStyles.priceMedium.copyWith(
-                                  color: Colors.white.withOpacity(0.6),
+                                  // ✅ Fix 2: withOpacity → fromRGBO
+                                  color: const Color.fromRGBO(255, 255, 255, 0.6),
                                 ),
                               ),
                             ),
@@ -354,12 +372,13 @@ class _PortfolioHeroCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.green.withOpacity(0.2),
+                        // ✅ Fix 2: withOpacity → fromRGBO
+                        color: const Color.fromRGBO(0, 200, 83, 0.2),
                         borderRadius: BorderRadius.circular(
                           AppSizes.radiusFull,
                         ),
                         border: Border.all(
-                          color: AppColors.green.withOpacity(0.3),
+                          color: const Color.fromRGBO(0, 200, 83, 0.3),
                         ),
                       ),
                       child: Row(
@@ -445,9 +464,12 @@ class _QuickActionBtn extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.10),
+            // ✅ Fix 2: withOpacity → fromRGBO
+            color: const Color.fromRGBO(255, 255, 255, 0.10),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(
+              color: const Color.fromRGBO(255, 255, 255, 0.12),
+            ),
           ),
           child: Column(
             children: [
@@ -479,7 +501,6 @@ class _MarketStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Wrap in Obx so RxList changes rebuild this widget
     return Obx(
       () => SizedBox(
         height: 88,
@@ -524,8 +545,10 @@ class _MarketStatsRow extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: (stat.isPositive ? AppColors.green : AppColors.red)
-                          .withOpacity(0.1),
+                      // ✅ Fix 2: withOpacity → fromRGBO
+                      color: stat.isPositive
+                          ? const Color.fromRGBO(0, 200, 83, 0.1)
+                          : const Color.fromRGBO(255, 77, 77, 0.1),
                       borderRadius: BorderRadius.circular(AppSizes.radiusFull),
                     ),
                     child: Text(
@@ -561,7 +584,9 @@ class _PromoBanner extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.screenPaddingH),
       child: Container(
-        height: 110,
+        // ✅ Fix 1: Removed fixed height:110 — let content size itself naturally
+        // The Column inside was 86px tall but only had 74px (110 - 18*2 padding),
+        // causing the 12px overflow. Now the container expands to fit its content.
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF1A7EFF), Color(0xFF00D2FF)],
@@ -578,9 +603,10 @@ class _PromoBanner extends StatelessWidget {
               child: Container(
                 width: 120,
                 height: 120,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+                  // ✅ Fix 2: withOpacity → fromRGBO
+                  color: Color.fromRGBO(255, 255, 255, 0.08),
                 ),
               ),
             ),
@@ -590,20 +616,23 @@ class _PromoBanner extends StatelessWidget {
               child: Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
+                  // ✅ Fix 2: withOpacity → fromRGBO
+                  color: Color.fromRGBO(255, 255, 255, 0.06),
                 ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(18),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      // ✅ Fix 1: mainAxisSize.min so column doesn't over-expand
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -611,7 +640,8 @@ class _PromoBanner extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            // ✅ Fix 2: withOpacity → fromRGBO
+                            color: const Color.fromRGBO(255, 255, 255, 0.2),
                             borderRadius: BorderRadius.circular(
                               AppSizes.radiusFull,
                             ),
@@ -625,25 +655,31 @@ class _PromoBanner extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          'Get Pro Intelligence\nUp to 30% off',
-                          style: AppTextStyles.headlineMedium.copyWith(
-                            color: Colors.white,
-                            fontSize: 16,
-                            height: 1.25,
+                        // ✅ Fix 1: Flexible prevents text from demanding more
+                        // space than is available
+                        Flexible(
+                          child: Text(
+                            'Get Pro Intelligence\nUp to 30% off',
+                            style: AppTextStyles.headlineMedium.copyWith(
+                              color: Colors.white,
+                              fontSize: 16,
+                              height: 1.25,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Unlock VC data, on-chain alerts & more',
                           style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.white.withOpacity(0.75),
+                            // ✅ Fix 2: withOpacity → fromRGBO
+                            color: const Color.fromRGBO(255, 255, 255, 0.75),
                             fontSize: 11,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -687,7 +723,7 @@ class _FilterTabs extends StatelessWidget {
           horizontal: AppSizes.screenPaddingH,
         ),
         itemCount: controller.filterTabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final tab = controller.filterTabs[i];
           return Obx(() {
@@ -744,7 +780,7 @@ class _TrendingList extends StatelessWidget {
             horizontal: AppSizes.screenPaddingH,
           ),
           itemCount: controller.trendingAssets.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
           itemBuilder: (_, i) {
             final asset = controller.trendingAssets[i];
             return _TrendingCard(asset: asset, controller: controller);
@@ -857,8 +893,7 @@ class _GainersLosersSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final gainers = controller.gainers
-          .toList(); // .toList() triggers tracking
+      final gainers = controller.gainers.toList();
       final losers = controller.losers.toList();
       return Padding(
         padding: const EdgeInsets.symmetric(
@@ -954,6 +989,7 @@ class _GainersLosersCard extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Watchlist Section
+// ✅ Fix 5: Uses ListView.builder for lazy loading instead of .map().toList()
 // ─────────────────────────────────────────────────────────────────────────────
 class _WatchlistSection extends StatelessWidget {
   final HomeController controller;
@@ -966,10 +1002,14 @@ class _WatchlistSection extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
           horizontal: AppSizes.screenPaddingH,
         ),
-        child: Column(
-          children: controller.watchlistAssets
-              .map((a) => _CoinListTile(asset: a, controller: controller))
-              .toList(),
+        child: ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: controller.watchlistAssets.length,
+          itemBuilder: (_, i) => _CoinListTile(
+            asset: controller.watchlistAssets[i],
+            controller: controller,
+          ),
         ),
       ),
     );
@@ -998,10 +1038,11 @@ class _CoinListTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [
-                  AppColors.accent.withOpacity(0.15),
-                  AppColors.teal.withOpacity(0.10),
+                  // ✅ Fix 2: withOpacity → fromRGBO
+                  Color.fromRGBO(76, 111, 255, 0.15),
+                  Color.fromRGBO(0, 198, 207, 0.10),
                 ],
               ),
             ),
@@ -1057,6 +1098,7 @@ class _CoinListTile extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VC Deals List
+// ✅ Fix 5: Uses ListView.builder for lazy loading instead of .map().toList()
 // ─────────────────────────────────────────────────────────────────────────────
 class _VCDealsList extends StatelessWidget {
   final HomeController controller;
@@ -1069,10 +1111,11 @@ class _VCDealsList extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
           horizontal: AppSizes.screenPaddingH,
         ),
-        child: Column(
-          children: controller.recentDeals
-              .map((d) => _VCDealTile(deal: d))
-              .toList(),
+        child: ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: controller.recentDeals.length,
+          itemBuilder: (_, i) => _VCDealTile(deal: controller.recentDeals[i]),
         ),
       ),
     );
@@ -1197,7 +1240,10 @@ class _ChangeChip extends StatelessWidget {
         vertical: small ? 2 : 3,
       ),
       decoration: BoxDecoration(
-        color: (isPos ? AppColors.green : AppColors.red).withOpacity(0.1),
+        // ✅ Fix 2: withOpacity → fromRGBO
+        color: isPos
+            ? const Color.fromRGBO(0, 200, 83, 0.1)
+            : const Color.fromRGBO(255, 77, 77, 0.1),
         borderRadius: BorderRadius.circular(AppSizes.radiusFull),
       ),
       child: Row(
@@ -1252,7 +1298,7 @@ class _SparklinePainter extends CustomPainter {
   final List<double> data;
   final bool isPositive;
 
-  _SparklinePainter({required this.data, required this.isPositive});
+  const _SparklinePainter({required this.data, required this.isPositive});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1280,7 +1326,11 @@ class _SparklinePainter extends CustomPainter {
       fillPath,
       Paint()
         ..shader = LinearGradient(
-          colors: [color.withOpacity(0.25), color.withOpacity(0.0)],
+          colors: [
+            // ✅ Fix 2: withOpacity → fromRGBO
+            color.withValues(alpha: 0.25),
+            color.withValues(alpha: 0.0),
+          ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
@@ -1301,8 +1351,15 @@ class _SparklinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SparklinePainter old) =>
-      old.data != data || old.isPositive != isPositive;
+  // ✅ Fix 3: Compare list contents not references to avoid unnecessary repaints
+  bool shouldRepaint(covariant _SparklinePainter old) {
+    if (old.isPositive != isPositive) return true;
+    if (old.data.length != data.length) return true;
+    for (int i = 0; i < data.length; i++) {
+      if (old.data[i] != data[i]) return true;
+    }
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

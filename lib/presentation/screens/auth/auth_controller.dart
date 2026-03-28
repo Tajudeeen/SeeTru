@@ -31,8 +31,11 @@ class AuthController extends GetxController {
     _animateIn();
   }
 
-  void _animateIn() async {
+  // ✅ Fix 1: Changed to Future<void> so errors surface properly
+  Future<void> _animateIn() async {
     await Future.delayed(const Duration(milliseconds: 100));
+    // ✅ Fix 6: Guard before updating observables after any delay
+    if (!Get.isRegistered<AuthController>()) return;
     formOpacity.value = 1.0;
     formOffset.value = 0.0;
   }
@@ -43,6 +46,8 @@ class AuthController extends GetxController {
     formOffset.value = 20.0;
     errorMessage.value = '';
     Future.delayed(const Duration(milliseconds: 200), () {
+      // ✅ Fix 2: Guard against controller being disposed during delay
+      if (!Get.isRegistered<AuthController>()) return;
       authMode.value = mode;
       _animateIn();
     });
@@ -56,7 +61,8 @@ class AuthController extends GetxController {
 
   // ── Submit ─────────────────────────────────────────────────────────
   Future<void> submitForm() async {
-    if (!formKey.currentState!.validate()) return;
+    // ✅ Fix 4: Safe null-aware form validation instead of force-unwrap
+    if (!(formKey.currentState?.validate() ?? false)) return;
     errorMessage.value = '';
     isLoading.value = true;
 
@@ -74,10 +80,16 @@ class AuthController extends GetxController {
         );
       }
       Get.offAllNamed(AppRoutes.main);
+    } on AuthException catch (e) {
+      // ✅ Fix 3: Catch typed AuthException explicitly
+      errorMessage.value = e.message;
     } catch (e) {
-      errorMessage.value = e.toString();
+      errorMessage.value = 'An unexpected error occurred.';
     } finally {
-      isLoading.value = false;
+      // ✅ Fix 6: Guard before touching observables after async gap
+      if (Get.isRegistered<AuthController>()) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -90,10 +102,16 @@ class AuthController extends GetxController {
       if (result != null) {
         Get.offAllNamed(AppRoutes.main);
       }
+    } on AuthException catch (e) {
+      // ✅ Fix 3: Catch typed AuthException explicitly
+      errorMessage.value = e.message;
     } catch (e) {
-      errorMessage.value = e.toString();
+      errorMessage.value = 'An unexpected error occurred.';
     } finally {
-      isLoading.value = false;
+      // ✅ Fix 6: Guard before touching observables after async gap
+      if (Get.isRegistered<AuthController>()) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -103,9 +121,13 @@ class AuthController extends GetxController {
     isLoading.value = true;
     try {
       await Future.delayed(const Duration(milliseconds: 800));
-      errorMessage.value = 'Apple Sign In coming soon.';
+      if (Get.isRegistered<AuthController>()) {
+        errorMessage.value = 'Apple Sign In coming soon.';
+      }
     } finally {
-      isLoading.value = false;
+      if (Get.isRegistered<AuthController>()) {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -116,7 +138,8 @@ class AuthController extends GetxController {
         'Email required',
         'Enter your email address first',
         snackPosition: SnackPosition.TOP,
-        backgroundColor: const Color(0xFFFF4D4D).withOpacity(0.1),
+        // ✅ Fix 5: withOpacity() replaced with Color.fromRGBO()
+        backgroundColor: const Color.fromRGBO(255, 77, 77, 0.1),
         colorText: const Color(0xFFFF4D4D),
         margin: const EdgeInsets.all(16),
         borderRadius: 12,
@@ -133,8 +156,11 @@ class AuthController extends GetxController {
         borderRadius: 12,
         duration: const Duration(seconds: 3),
       );
+    } on AuthException catch (e) {
+      // ✅ Fix 3: Catch typed AuthException explicitly
+      errorMessage.value = e.message;
     } catch (e) {
-      errorMessage.value = e.toString();
+      errorMessage.value = 'An unexpected error occurred.';
     }
   }
 
