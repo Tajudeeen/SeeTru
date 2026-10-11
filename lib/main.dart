@@ -1,45 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:seetru/core/services/applock_service.dart';
-import 'package:seetru/core/services/biometric_service.dart';
-import 'package:seetru/core/services/gecko_service.dart';
-import 'package:seetru/core/services/secure_storage_service.dart';
-import 'package:seetru/core/services/session_manager.dart';
-import 'package:seetru/firebase_options.dart';
-import 'core/services/auth_service.dart';
-import 'app/app.dart';
+import 'data/local_store.dart';
+import 'data/market_repository.dart';
+import 'data/account_service.dart';
+import 'workspace_controller.dart';
+import 'ui/app.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
-
-  await GetStorage.init();
-
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-
-  await _initServices();
-  runApp(const SeeTruApp());
-}
-
-Future<void> _initServices() async {
-  await Get.putAsync<SecureStorageService>(() async => SecureStorageService());
-  await Get.putAsync<SessionManager>(() async => SessionManager());
-  await Get.putAsync<AuthService>(() async => AuthService());
-  await Get.putAsync<BiometricService>(() async => BiometricService());
-  await Get.putAsync<AppLockService>(() async => AppLockService());
-  await Get.putAsync<CoinGeckoService>(() async => CoinGeckoService());
+  try {
+    await GetStorage.init('seetru_v2');
+    final store = DeviceStore(GetStorage('seetru_v2'));
+    Get.put(
+      WorkspaceController(
+        store,
+        MarketRepository(
+          store,
+          apiBase: const String.fromEnvironment('SEETRU_API_BASE'),
+        ),
+      ),
+      permanent: true,
+    );
+    Get.put(await AccountService().initialize(), permanent: true);
+    runApp(const SeeTruApp());
+  } catch (_) {
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('SeeTru could not open local storage.'),
+                const SizedBox(height: 16),
+                FilledButton(onPressed: main, child: const Text('Try again')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

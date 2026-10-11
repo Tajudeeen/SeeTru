@@ -1,233 +1,86 @@
-# SeeTru — Crypto Intelligence App
-### Flutter + GetX + Firebase + Clean Architecture
+# SeeTru
 
----
+A Flutter crypto research workspace with live market data, a personal trade ledger, watchlists, price alerts and sourced research. Rebuilt from the original SeeTru concept without fabricated balances, posts, funding rounds or price histories.
 
-## 🚀 Project Overview
+## What works
 
-SeeTru is a **production-grade Flutter crypto intelligence app** with:
-- **Real-time price tracking** via CoinGecko, CoinMarketCap & CryptoRank APIs
-- **VC & fundraising data** from CryptoRank
-- **On-chain intelligence** from Dune Analytics
-- **Social alpha feed** from X (Twitter) API v2
-- **Firebase backend** for auth, Firestore, push notifications
-- **GetX** throughout — every screen has Controller + Binding + View
+| Area | Behavior |
+| --- | --- |
+| Markets | CoinGecko top 100, global overview, provider search, token details and separate 1D/7D/30D/90D/1Y chart requests |
+| Watchlist | Persistent coin IDs, including tokens outside the top 100 |
+| Portfolio | Empty by default; dated buys and sells, actual USD execution prices, fees, average cost, realized/unrealized P/L, holdings and history |
+| Alerts | Above/below thresholds, fresh quotes only, one trigger per alert, unread state; checks while the app is open and on resume |
+| Research | CryptoRank funding rounds, Dune observations and original X posts through the optional server; independent source availability |
+| Saved research | Source bookmarks and personal notes with HTTPS references |
+| Settings | Dark/light appearance, display name, balance privacy, validated JSON export/restore and reset |
+| Accounts | Optional Firebase email/password, password reset and private manual cloud backups |
+| Layout | Phone navigation and desktop rail, bundled typography, system text scaling |
 
----
+Provider outages show actionable errors. Cached market data retains the original fetch time and quote timestamp. Missing values are unavailable rather than zero. SeeTru records transactions; it does not execute orders or connect to wallets.
 
-## 📁 Full File Structure
+## Run the app
 
-```
-lib/
-├── main.dart                          # App entry point
-├── app/
-│   ├── app.dart                       # GetMaterialApp root
-│   └── routes/
-│       └── app_routes.dart            # All named routes + GetPages
-│
-├── core/
-│   ├── constants/
-│   │   ├── app_colors.dart            # Full colour palette + gradients
-│   │   ├── app_text_styles.dart       # ClashDisplay + Satoshi type scale
-│   │   └── app_sizes.dart             # Spacing, radii, icon sizes, strings
-│   └── theme/
-│       └── app_theme.dart             # Light + Dark ThemeData
-│
-└── presentation/
-    └── screens/
-        ├── splash/                    # ✅ Full (animated, orbs, grid, dots)
-        │   ├── splash_controller.dart
-        │   ├── splash_binding.dart
-        │   └── splash_view.dart
-        ├── onboarding/               # ✅ Full (3 pages, charts, illustrations)
-        │   ├── onboarding_controller.dart
-        │   ├── onboarding_binding.dart
-        │   └── onboarding_view.dart
-        ├── auth/                     # ✅ Full (Sign In/Up, Google, Apple, validation)
-        │   ├── auth_controller.dart
-        │   ├── auth_binding.dart
-        │   └── auth_view.dart
-        ├── main/                     # ✅ Full (IndexedStack + animated bottom nav)
-        │   ├── main_controller.dart
-        │   ├── main_binding.dart
-        │   └── main_view.dart
-        ├── home/                     # ✅ Full (portfolio card, market stats, VC deals, watchlist)
-        │   ├── home_controller.dart
-        │   ├── home_binding.dart
-        │   └── home_view.dart
-        ├── portfolio/                # ✅ Full (donut chart, line chart, holdings, P&L)
-        │   ├── portfolio_controller.dart
-        │   ├── portfolio_binding.dart
-        │   └── portfolio_view.dart
-        ├── social/                   # ✅ Full (X feed, trending, KOLs, sentiment gauge)
-        │   ├── social_controller.dart
-        │   ├── social_binding.dart
-        │   └── social_view.dart
-        ├── notifications/            # ✅ Full (grouped, read/unread, filter chips, actions)
-        │   ├── notification_controller.dart
-        │   ├── notification_binding.dart
-        │   └── notification_view.dart
-        ├── history/                  # ✅ Full (grouped tx list, monthly summary, detail sheet)
-        │   ├── history_controller.dart
-        │   ├── history_binding.dart
-        │   └── history_view.dart
-        │   ├── activity_history_controller.dart  # ✅ Full (timeline, on-chain, VC, social events)
-        │   ├── activity_history_binding.dart
-        │   └── activity_history_view.dart
-        ├── settings/                 # ✅ Full (toggles, API status, language, currency, biometrics)
-        │   ├── settings_controller.dart
-        │   ├── settings_binding.dart
-        │   └── settings_view.dart
-        ├── profile/                  # ✅ Full (hero, stats, badges, portfolio card, quick links)
-        │   ├── user_profile_controller.dart
-        │   ├── user_profile_binding.dart
-        │   ├── user_profile_view.dart
-        │   ├── edit_profile_controller.dart   # ✅ Full (form, avatar, coin prefs, danger zone)
-        │   ├── edit_profile_binding.dart
-        │   └── edit_profile_view.dart
-        └── watchlist/                # ✅ Full (search, trending tokens, one-tap add/remove)
-            ├── add_token_controller.dart
-            ├── add_token_binding.dart
-            └── add_token_view.dart
-```
+Requires Flutter 3.47.7 (Dart 3.13.5) or a compatible SDK satisfying `pubspec.yaml`.
 
----
-
-## ⚙️ Setup Instructions
-
-### 1. Clone & Install
-```bash
-git clone <your-repo>
-cd seetru
+```sh
 flutter pub get
-```
-
-### 2. Firebase Setup
-```bash
-# Install FlutterFire CLI
-dart pub global activate flutterfire_cli
-
-# Configure for your Firebase project
-flutterfire configure
-
-# Then uncomment Firebase init in main.dart
-```
-
-### 3. Environment / API Keys
-Create `lib/core/config/app_config.dart`:
-```dart
-class AppConfig {
-  // CoinGecko (free tier available)
-  static const String coinGeckoApiKey = 'YOUR_COINGECKO_API_KEY';
-  static const String coinGeckoBaseUrl = 'https://api.coingecko.com/api/v3';
-
-  // CoinMarketCap
-  static const String cmcApiKey = 'YOUR_CMC_API_KEY';
-  static const String cmcBaseUrl = 'https://pro-api.coinmarketcap.com/v1';
-
-  // CryptoRank
-  static const String cryptoRankApiKey = 'YOUR_CRYPTORANK_API_KEY';
-  static const String cryptoRankBaseUrl = 'https://api.cryptorank.io/v1';
-
-  // Dune Analytics
-  static const String duneApiKey = 'YOUR_DUNE_API_KEY';
-  static const String duneBaseUrl = 'https://api.dune.com/api/v1';
-
-  // X (Twitter) API v2
-  static const String xBearerToken = 'YOUR_X_BEARER_TOKEN';
-  static const String xBaseUrl = 'https://api.twitter.com/2';
-}
-```
-
-### 4. Custom Fonts
-Download and place in `assets/fonts/`:
-- **Satoshi**: https://www.fontshare.com/fonts/satoshi
-- **ClashDisplay**: https://www.fontshare.com/fonts/clash-display
-
-### 5. Assets Folder
-Create these directories:
-```bash
-mkdir -p assets/images assets/icons assets/animations assets/fonts
-```
-
-### 6. Run
-```bash
 flutter run
 ```
 
----
+The app starts without Firebase or paid research credentials. It requests CoinGecko directly by default. Browser access can be affected by provider CORS or rate limits; use the gateway for deployed web apps.
 
-## 🎨 Design System
-
-| Token | Value |
-|-------|-------|
-| Primary | `#1A2B6D` (Deep Navy) |
-| Accent | `#4C6FFF` (Vivid Blue) |
-| Teal | `#00C6CF` |
-| Green | `#00C48C` |
-| Red | `#FF6B6B` |
-| Background | `#F0F4FF` |
-| Surface | `#FFFFFF` |
-| Display Font | ClashDisplay |
-| Body Font | Satoshi |
-
----
-
-## 📦 Key Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| `get` | State management, routing, DI |
-| `get_storage` | Lightweight local storage |
-| `firebase_*` | Auth, Firestore, Notifications |
-| `dio` | HTTP client for all APIs |
-| `twitter_api_v2` | X (Twitter) social feed |
-| `fl_chart` | Charts & sparklines |
-| `flutter_local_notifications` | Price alerts |
-| `local_auth` | Biometric login |
-| `flutter_secure_storage` | Encrypted token storage |
-| `cached_network_image` | Network images |
-| `shimmer` | Loading skeleton |
-| `lottie` | JSON animations |
-
----
-
-## 🏗 Architecture
-
-```
-Presentation (GetView + GetxController)
-     ↕
-Domain (Use Cases + Entities)
-     ↕
-Data (Repositories + API Providers + Firebase)
+```sh
+cd server
+cp .env.example .env
+npm start
 ```
 
-Every screen follows: **View → Controller → Binding**
-- `View` is stateless, reads from `controller.obs` variables
-- `Controller` manages business logic and state
-- `Binding` lazy-initialises the controller when the route is opened
+In a second terminal:
 
----
+```sh
+flutter run -d chrome --web-port 8080 --dart-define=SEETRU_API_BASE=http://localhost:8787
+```
 
-## 📱 All Screens
+Use an HTTPS gateway URL for releases. Android emulator networking usually requires `http://10.0.2.2:8787` plus debug-only cleartext configuration; production Android should use HTTPS. Configure the gateway's exact `ALLOWED_ORIGINS` for web clients. Native clients do not send an Origin header.
 
-| # | Screen | Status | Features |
-|---|--------|--------|---------|
-| 1 | Splash | ✅ Full | Animated logo, orbs, grid, pulsing dots, smart navigation |
-| 2 | Onboarding | ✅ Full | 3 illustrated pages, animated dots, skip/continue |
-| 3 | Auth | ✅ Full | Sign In/Up, Google, Apple, form validation, forgot password |
-| 4 | Home | ✅ Full | Portfolio card, market stats, promo banner, trending, VC deals, watchlist, shimmer |
-| 5 | Portfolio | ✅ Full | Balance, chart (6 ranges), donut allocation, holdings, P&L, transactions |
-| 6 | Social | ✅ Full | X feed, trending topics, KOLs, Fear&Greed, sentiment bars |
-| 7 | Notifications | ✅ Full | Read/unread, grouped, filter chips, action buttons |
-| 8 | History | ✅ Full | Grouped tx list, monthly summary, detail sheet, search |
-| 9 | Activity | ✅ Full | Timeline, on-chain moves, VC events, sparkline chart |
-| 10 | Settings | ✅ Full | Dark mode, biometrics, notifications, API status, currency |
-| 11 | Profile | ✅ Full | Hero, stats, badges, portfolio card, quick links |
-| 12 | Edit Profile | ✅ Full | Form, avatar, coin prefs, danger zone |
-| 13 | Add Token | ✅ Full | Search, trending list, one-tap add/remove with animation |
-| 14 | Main Shell | ✅ Full | Persistent bottom nav with animated active indicator |
+## Optional accounts
 
----
+Create your Firebase project, enable Email/Password Authentication and Firestore, then deploy `firestore.rules`. Add the web app's authorized domains and platform registration as applicable. Supply public Firebase client configuration with `--dart-define-from-file=firebase-config.json`:
 
-Built with ❤️ by SeeTru — *See the Truth in Crypto*
+```json
+{
+  "FIREBASE_API_KEY": "your-client-api-key",
+  "FIREBASE_APP_ID": "your-app-id",
+  "FIREBASE_PROJECT_ID": "your-project-id",
+  "FIREBASE_SENDER_ID": "your-sender-id",
+  "FIREBASE_AUTH_DOMAIN": "your-project.firebaseapp.com",
+  "SEETRU_API_BASE": "https://your-gateway.example"
+}
+```
+
+`firebase-config.json` is ignored. Never put CryptoRank, Dune or X credentials in Flutter defines. Firebase client configuration is public; Firestore rules control backup access. Accounts are optional and initialization failures preserve local access. Sign-in does not automatically sync or merge local data. Cloud restore explicitly replaces it after confirmation.
+
+## Verify
+
+```sh
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+flutter build web --release
+node --test server/test.mjs
+```
+
+GitHub Actions runs these checks and uploads the web build. See [verification evidence](docs/VERIFICATION.md), [integration contracts](docs/INTEGRATIONS.md) and [rebuild decisions](docs/REBUILD.md).
+
+## Boundaries
+
+- Local data and JSON exports are not encrypted. Clearing application/browser storage removes local data. Export before changing devices.
+- Alerts do not run in the background or send push notifications.
+- Average cost is a tracking method, not a tax report. USD is the supported quote currency.
+- Research requires provider credentials, permissions and quotas. The Dune integration reads the latest result of a configured query; it never triggers a paid query execution.
+- The gateway has per-instance memory caches, rate limits and a shared request budget. Put it behind HTTPS and edge rate limiting/authentication before public exposure. CORS is not authentication. A distributed deployment needs shared quotas and durable caching.
+- Native store releases still need your signing credentials, device testing and platform account configuration. Existing application identifiers are preserved for upgrade compatibility. Android release signing remains the repository's development setup.
+
+## Structure
+
+`lib/domain` contains validated models and ledger calculations. `lib/data` contains device storage, market access and optional Firebase. `lib/workspace_controller.dart` coordinates persisted changes and foreground refresh. `lib/ui` contains the responsive screens. `server` contains a dependency-free Node 22 provider gateway. Automated fixtures are confined to tests.

@@ -121,3 +121,6 @@ app.*.map.json
 # ─────────────────────────────────────────────────────────────────────────────
 coverage/
 lcov.info
+!pubspec.lock
+!server/.env.example
+firebase-config.json
