@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'data/local_store.dart';
@@ -228,7 +229,7 @@ class WorkspaceController extends GetxController with WidgetsBindingObserver {
   }
 
   String export() => storageDamaged
-      ? store.read('workspace_v2').toString()
+      ? const JsonEncoder.withIndent('  ').convert(store.read('workspace_v2'))
       : workspace.value.export();
   @override
   void onClose() {

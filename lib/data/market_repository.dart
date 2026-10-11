@@ -77,6 +77,7 @@ class MarketRepository {
     }
     if (!force &&
         previous != null &&
+        DateTime.now().difference(previous.fetchedAt) >= Duration.zero &&
         DateTime.now().difference(previous.fetchedAt) <
             const Duration(minutes: 2)) {
       return previous;

@@ -108,9 +108,12 @@ class AppShell extends StatelessWidget {
                       const SizedBox(height: 20),
                       Text(
                         'A clearer view.\nA better decision.',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.headlineLarge?.copyWith(fontSize: 48),
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(
+                              fontSize: MediaQuery.sizeOf(context).width < 600
+                                  ? 36
+                                  : 48,
+                            ),
                       ),
                       const SizedBox(height: 24),
                       const Text(

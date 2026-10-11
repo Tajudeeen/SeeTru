@@ -335,6 +335,11 @@ class Workspace {
         w.alerts.length > 100 ||
         w.saved.length > 1000 ||
         w.watchlist.toSet().length != w.watchlist.length ||
+        w.watchlist.any(
+          (id) => !RegExp(r'^[a-z0-9][a-z0-9-]{0,99}$').hasMatch(id),
+        ) ||
+        w.alerts.map((a) => a.id).toSet().length != w.alerts.length ||
+        w.saved.map((r) => r.id).toSet().length != w.saved.length ||
         w.name.length > 80) {
       throw const FormatException(
         'Backup exceeds workspace limits or contains duplicates.',

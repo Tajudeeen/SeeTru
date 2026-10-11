@@ -31,6 +31,15 @@ class FixtureRepository extends MarketRepository {
     ),
   ], DateTime.now().toUtc());
   @override
+  Future<List<Coin>> search(String query) async => [
+    Coin(id: 'bitcoin', name: 'Bitcoin', symbol: 'btc'),
+  ];
+  @override
+  Future<List<PricePoint>> chart(String id, int days) async => [
+    PricePoint(DateTime.utc(2026), 100),
+    PricePoint(DateTime.utc(2026, 1, 2), 110),
+  ];
+  @override
   Future<Map<String, dynamic>> global() async => {
     'total_market_cap': {'usd': 10000},
     'total_volume': {'usd': 2000},

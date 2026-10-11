@@ -71,16 +71,16 @@ class Panel extends StatelessWidget {
     this.padding = const EdgeInsets.all(20),
   });
   @override
-  Widget build(BuildContext context) => Container(
-    padding: padding,
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surface,
+    shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(
+      side: BorderSide(
         color: Theme.of(context).dividerColor.withValues(alpha: .18),
       ),
     ),
-    child: child,
+    clipBehavior: Clip.antiAlias,
+    child: Padding(padding: padding, child: child),
   );
 }
 

@@ -144,46 +144,63 @@ class _Overview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.find<WorkspaceController>();
-    return Obx(
-      () => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 760;
+        return Obx(() {
+          final cards = [
+            _Metric(
+              'Global market cap',
+              money(number(c.global['total_market_cap']?['usd'])),
+              width: narrow ? 240 : 280,
+            ),
+            _Metric(
+              '24h volume',
+              money(number(c.global['total_volume']?['usd'])),
+              width: narrow ? 240 : 280,
+            ),
+            _Metric(
+              'Bitcoin dominance',
+              c.global['market_cap_percentage']?['btc'] == null
+                  ? 'Unavailable'
+                  : '${number(c.global['market_cap_percentage']['btc'])?.toStringAsFixed(1)}%',
+              width: narrow ? 240 : 280,
+            ),
+          ];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _Metric(
-                'Global market cap',
-                money(number(c.global['total_market_cap']?['usd'])),
-              ),
-              _Metric(
-                '24h volume',
-                money(number(c.global['total_volume']?['usd'])),
-              ),
-              _Metric(
-                'Bitcoin dominance',
-                c.global['market_cap_percentage']?['btc'] == null
-                    ? 'Unavailable'
-                    : '${number(c.global['market_cap_percentage']['btc'])?.toStringAsFixed(1)}%',
-              ),
+              if (narrow)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: cards
+                        .expand((card) => [card, const SizedBox(width: 16)])
+                        .toList(),
+                  ),
+                )
+              else
+                Wrap(spacing: 16, runSpacing: 16, children: cards),
+              if (c.globalError.value.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Global summary: ${c.globalError.value}'),
+              ],
             ],
-          ),
-          if (c.globalError.value.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('Global summary: ${c.globalError.value}'),
-          ],
-        ],
-      ),
+          );
+        });
+      },
     );
   }
 }
 
 class _Metric extends StatelessWidget {
   final String label, value;
-  const _Metric(this.label, this.value);
+  final double width;
+  const _Metric(this.label, this.value, {this.width = 280});
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 280,
+    width: width,
     child: Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +230,11 @@ class _SearchSheetState extends State<_SearchSheet> {
     timer?.cancel();
     final token = ++generation;
     if (q.trim().isEmpty) {
-      setState(() => results = []);
+      setState(() {
+        results = [];
+        loading = false;
+        error = '';
+      });
       return;
     }
     timer = Timer(const Duration(milliseconds: 400), () async {
