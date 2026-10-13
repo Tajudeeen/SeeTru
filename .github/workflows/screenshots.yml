@@ -1,0 +1,23 @@
+name: Capture SeeTru screens
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    if: startsWith(github.head_ref, 'preview/screenshots')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test test/_screenshots.dart
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: seetru-screenshots
+          path: screenshots/
