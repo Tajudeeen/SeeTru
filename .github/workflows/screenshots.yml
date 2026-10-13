@@ -15,7 +15,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter test test/_screenshots.dart
+      - run: timeout 180 flutter test test/_screenshots.dart
       - uses: actions/upload-artifact@v4
         if: always()
         with:

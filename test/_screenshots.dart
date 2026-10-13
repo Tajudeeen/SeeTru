@@ -33,7 +33,7 @@ class ScreensRepository extends FixtureRepository {
 }
 void main() {
  testWidgets('capture every page and form', (tester) async {
-   await Directory('screenshots').create(recursive:true);
+   Directory('screenshots').createSync(recursive:true);
    await tester.runAsync(() async {
      for(final entry in {'Satoshi':'assets/fonts/Satoshi_Complete/Fonts/OTF/Satoshi-Regular.otf',
        'ClashDisplay':'assets/fonts/ClashDisplay_Complete/Fonts/OTF/ClashDisplay-Medium.otf','MaterialIcons':'fonts/MaterialIcons-Regular.otf'}.entries) {
@@ -46,6 +46,7 @@ void main() {
    const key=ValueKey('capture');
    Future<void> settle() async {await tester.pumpAndSettle();}
    Future<void> save(String name) async {
+     print('CAPTURE: $name');
      await settle();
      final boundary=tester.renderObject<RenderRepaintBoundary>(find.byKey(key));
      await tester.runAsync(() async {
